@@ -124,9 +124,9 @@ async def upload_file(
         details={"filename": safe_name, "size": len(content), "type": ext},
     )
 
-    # TODO: Trigger async ingestion task via Celery
-    # from app.tasks.knowledge_tasks import ingest_knowledge_source
-    # ingest_knowledge_source.delay(str(source.id))
+    # Trigger async ingestion task via Celery
+    from app.tasks.knowledge_tasks import ingest_knowledge_source
+    ingest_knowledge_source.delay(str(source.id))
 
     return source
 
@@ -166,7 +166,10 @@ async def reindex_source(
     source.version += 1
     await db.flush()
 
-    # TODO: Trigger async reindex task
+    # Trigger async reindex task via Celery
+    from app.tasks.knowledge_tasks import ingest_knowledge_source
+    ingest_knowledge_source.delay(str(source_id))
+
     return {"message": "Reindexing queued", "source_id": str(source_id)}
 
 
