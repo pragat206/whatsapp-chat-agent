@@ -1,10 +1,26 @@
 """Application configuration loaded from environment variables."""
 
+import json
 from functools import lru_cache
 from typing import Any
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+
+def _parse_comma_or_json(v: Any) -> list[str]:
+    """Parse a value that's either JSON array or comma-separated string."""
+    if isinstance(v, list):
+        return v
+    if isinstance(v, str):
+        v = v.strip()
+        if v.startswith("["):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                pass
+        return [s.strip() for s in v.split(",") if s.strip()]
+    return []
 
 
 class Settings(BaseSettings):
@@ -14,8 +30,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     SECRET_KEY: str = "change-me"
     API_PREFIX: str = "/api/v1"
-    ALLOWED_HOSTS: list[str] = ["*"]
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    ALLOWED_HOSTS: str = '["*"]'
+    CORS_ORIGINS: str = '["http://localhost:5173"]'
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/whatsapp_agent"
@@ -66,23 +82,23 @@ class Settings(BaseSettings):
 
     # Business
     DEFAULT_LANGUAGE: str = "en"
-    SUPPORTED_LANGUAGES: list[str] = ["en", "hi"]
+    SUPPORTED_LANGUAGES: str = "en,hi"
     BUSINESS_HOURS_START: str = "09:00"
     BUSINESS_HOURS_END: str = "18:00"
     BUSINESS_TIMEZONE: str = "Asia/Kolkata"
     MAX_UPLOAD_SIZE_MB: int = 50
 
-    @field_validator("CORS_ORIGINS", "ALLOWED_HOSTS", "SUPPORTED_LANGUAGES", mode="before")
-    @classmethod
-    def parse_list(cls, v: Any) -> list[str]:
-        if isinstance(v, str):
-            import json
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return _parse_comma_or_json(self.CORS_ORIGINS)
 
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError:
-                return [s.strip() for s in v.split(",")]
-        return v
+    @property
+    def allowed_hosts_list(self) -> list[str]:
+        return _parse_comma_or_json(self.ALLOWED_HOSTS)
+
+    @property
+    def supported_languages_list(self) -> list[str]:
+        return _parse_comma_or_json(self.SUPPORTED_LANGUAGES)
 
     @property
     def is_production(self) -> bool:
